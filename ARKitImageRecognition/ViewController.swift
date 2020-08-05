@@ -90,7 +90,10 @@ class ViewController: UIViewController {
     func resetTrackingConfiguration() {
         guard let referenceImages = ARReferenceImage.referenceImages(inGroupNamed: "AR Resources", bundle: nil) else { return }
         let configuration = ARWorldTrackingConfiguration()
-        configuration.detectionImages = referenceImages
+
+		configuration.detectionImages = referenceImages
+		configuration.planeDetection = [.vertical, .horizontal]
+
         let options: ARSession.RunOptions = [.resetTracking, .removeExistingAnchors]
         sceneView.session.run(configuration, options: options)
         label.text = "Move camera around to detect images"
@@ -100,16 +103,10 @@ class ViewController: UIViewController {
 extension ViewController: ARSCNViewDelegate {
     
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+		
         DispatchQueue.main.async {
             guard let imageAnchor = anchor as? ARImageAnchor,
                 let imageName = imageAnchor.referenceImage.name else { return }
-            
-            // TODO: Comment out code
-            //            let planeNode = self.getPlaneNode(withReferenceImage: imageAnchor.referenceImage)
-            //            planeNode.opacity = 0.0
-            //            planeNode.eulerAngles.x = -.pi / 2
-            //            planeNode.runAction(self.fadeAction)
-            //            node.addChildNode(planeNode)
             
             // TODO: Overlay 3D Object
             let overlayNode = self.getNode(withImageName: imageName)
@@ -120,6 +117,31 @@ extension ViewController: ARSCNViewDelegate {
             
             self.label.text = "Image detected: \"\(imageName)\""
         }
+		
+		// 1
+		guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+		
+		// 2
+		let width = CGFloat(planeAnchor.extent.x)
+		let height = CGFloat(planeAnchor.extent.z)
+		let plane = SCNPlane(width: width, height: height)
+		
+		// 3
+		plane.materials.first?.diffuse.contents = UIColor.blue.withAlphaComponent(0.75)	// UIColor.transparentLightBlue
+		
+		// 4
+		let planeNode = SCNNode(geometry: plane)
+		
+		// 5
+		let x = CGFloat(planeAnchor.center.x)
+		let y = CGFloat(planeAnchor.center.y)
+		let z = CGFloat(planeAnchor.center.z)
+		planeNode.position = SCNVector3(x,y,z)
+		planeNode.eulerAngles.x = -.pi / 2
+		
+		// 6
+		node.addChildNode(planeNode)
+		
     }
     
     func getPlaneNode(withReferenceImage image: ARReferenceImage) -> SCNNode {
